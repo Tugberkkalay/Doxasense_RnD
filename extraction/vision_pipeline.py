@@ -10,7 +10,7 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from .schemas import ImageAnalysis
 
 
-BLIP_MODEL_ID = "Salesforce/blip-image-captioning-base"
+BLIP_MODEL_ID = "Salesforce/blip2-opt-2.7b"
 
 
 class VisionModels:
