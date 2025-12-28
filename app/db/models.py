@@ -71,8 +71,8 @@ class NormalizedDoc(Base):
     # Multimodal specific
     captions = Column(ARRAY(Text), nullable=False, default=[])  # Image/video captions
     
-    # Metadata (JSON for flexibility)
-    metadata = Column(JSON, nullable=True)
+    # Extra metadata (JSON for flexibility) - renamed to avoid SQLAlchemy reserved word
+    extra_metadata = Column(JSON, nullable=True)
     # Examples:
     # - Text: {"page_count": 15, "has_tables": true, "table_count": 3}
     # - Image: {"width": 1920, "height": 1080, "detected_objects": ["car", "person"]}
