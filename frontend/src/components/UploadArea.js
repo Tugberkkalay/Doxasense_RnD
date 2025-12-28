@@ -54,6 +54,7 @@ function UploadArea({ onUpload, loading }) {
         className="file-input"
         onChange={handleChange}
         accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png,.mp3,.wav,.mp4,.mov"
+        multiple
       />
       
       <div className="upload-icon">
