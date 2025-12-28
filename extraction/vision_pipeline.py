@@ -15,6 +15,7 @@ BLIP_MODEL_ID = "Salesforce/blip2-opt-2.7b"
 
 class VisionModels:
     def __init__(self, model_id: str = BLIP_MODEL_ID):
+        print(f"[VisionPipeline] Loading BLIP-2 model: {model_id}")
         # Cihaz seçimi: önce CUDA, sonra MPS (Apple), en son CPU
         if torch.cuda.is_available():
             self.device = "cuda"
@@ -26,6 +27,7 @@ class VisionModels:
         self.blip_processor = BlipProcessor.from_pretrained(model_id)
         self.blip_model = BlipForConditionalGeneration.from_pretrained(model_id)
         self.blip_model.to(self.device)
+        print(f"[VisionPipeline] BLIP-2 model loaded on {self.device}")
 
 
 class VisionPipeline:
