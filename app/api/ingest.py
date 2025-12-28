@@ -195,18 +195,18 @@ async def ingest_auto(
     }
 
 
-# ----------------- 2) Production flow: upload + inline processing ----------------- #
+# ----------------- 2) Non-blocking upload with queue ----------------- #
 @router.post("/upload")
 async def ingest_upload(
     file: UploadFile = File(...),
+    use_gpu: bool = False,  # Optional: force GPU processing
     db = Depends(get_db),
 ) -> Dict[str, Any]:
     """
-    Production senaryosu (without queue - inline processing):
-    - Dosyayı diske kaydeder
-    - documents collection'ına insert eder
-    - Hemen işler (inline)
-    - Response döner
+    Non-blocking document upload with queue
+    - Saves file immediately
+    - Queues processing job
+    - Returns job_id for status tracking
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="Dosya adı boş.")
@@ -223,23 +223,51 @@ async def ingest_upload(
         "size_bytes": file_size,
         "storage_backend": "local_fs",
         "storage_path": storage_path,
-        "status": "processing",
+        "status": "queued",
     })
 
-    try:
-        # Process inline (no queue)
-        from app.workers.document_processor_mongo import process_document_mongo
-        result = process_document_mongo(doc["_id"])
-        
-        return {
-            "document_id": doc["_id"],
-            "status": "completed",
-            "result": result
-        }
-    except Exception as e:
-        # Update status to failed
-        doc_db.update_document(doc["_id"], {"status": "failed"})
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+    # Enqueue processing job
+    from app.queue import enqueue_document_processing
+    
+    job = enqueue_document_processing(
+        document_id=doc["_id"],
+        use_gpu=use_gpu
+    )
+    
+    # Store job_id in document for reference
+    doc_db.update_document(doc["_id"], {"job_id": job.id})
+    
+    return {
+        "document_id": doc["_id"],
+        "job_id": job.id,
+        "status": "queued",
+        "message": "Document queued for processing. Use job_id to check status."
+    }
+
+
+# ----------------- Job Status Endpoint ----------------- #
+@router.get("/job/{job_id}/status")
+async def get_job_status_endpoint(job_id: str) -> Dict[str, Any]:
+    """
+    Get processing job status
+    
+    Returns:
+        - status: queued, processing, completed, failed
+        - progress: 0-100
+        - result: processing result if completed
+    """
+    from app.queue import get_job_status
+    return get_job_status(job_id)
+
+
+# ----------------- Queue Stats ----------------- #
+@router.get("/queue/stats")
+async def get_queue_stats_endpoint() -> Dict[str, Any]:
+    """
+    Get queue statistics
+    """
+    from app.queue import get_queue_stats
+    return get_queue_stats()
 
 
 # ----------------- 1) List documents ----------------- #
