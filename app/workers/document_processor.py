@@ -113,7 +113,7 @@ def process_document(document_id: str) -> dict[str, Any]:
         # 4) Modaliteye göre metni çıkar
         main_text = ""
         captions: List[str] = []
-        metadata: Dict[str, Any] = {}
+        extra_metadata: Dict[str, Any] = {}
         
         if routed.modality == FileModality.TEXT:
             extracted = get_ocr().auto_extract(routed.filename, routed.content)
