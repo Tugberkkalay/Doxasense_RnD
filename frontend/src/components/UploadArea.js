@@ -27,8 +27,11 @@ function UploadArea({ onUpload, loading }) {
 
   const handleChange = (e) => {
     e.preventDefault();
-    if (e.target.files && e.target.files[0]) {
-      onUpload(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      // Handle multiple files
+      Array.from(e.target.files).forEach(file => {
+        onUpload(file);
+      });
     }
   };
 
