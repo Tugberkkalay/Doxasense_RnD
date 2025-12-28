@@ -33,7 +33,7 @@ class AudioPipeline:
     offline Whisper ses/video pipeline.
     """
 
-    def __init__(self, model_name: str = "openai/whisper-small"):
+    def __init__(self, model_name: str = "openai/whisper-large-v3"):
         self.whisper = WhisperModels(model_name=model_name)
 
     # ----------------------------------------------------------- #
