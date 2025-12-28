@@ -8,26 +8,28 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.db.models import Document
+from app.db.models import Document, NormalizedDoc
 
 from extraction.ocr_pipeline import OcrPipeline
 from extraction.audio_pipeline import AudioPipeline
 from extraction.vision_pipeline import VisionPipeline
 from app.summarization.service import SummarizationService
-from app.llm.label_service import LabelService
+from app.embedding.enhanced_embedding_service import EnhancedEmbeddingService
+from app.nlp.tag_extraction_service import TagExtractionService
 
 from app.queue import task_queue
 from app.workers.document_processor import process_document
 
 
-router = APIRouter(prefix="/ingest", tags=["ingest"])
+router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 
 # ----------------- Global singleton'lar (lazy init) ----------------- #
 _ocr = None
 _audio = None
 _vision = None
 _summarizer = None
-_label_service = None
+_embedder = None
+_tag_extractor = None
 
 
 def get_ocr() -> OcrPipeline:
@@ -40,13 +42,15 @@ def get_ocr() -> OcrPipeline:
 def get_audio() -> AudioPipeline:
     global _audio
     if _audio is None:
-        _audio = AudioPipeline()  # offline whisper
+        print("[API] Loading Whisper-large-v3...")
+        _audio = AudioPipeline()
     return _audio
 
 
 def get_vision() -> VisionPipeline:
     global _vision
     if _vision is None:
+        print("[API] Loading BLIP-2...")
         _vision = VisionPipeline()
     return _vision
 
@@ -54,16 +58,25 @@ def get_vision() -> VisionPipeline:
 def get_summarizer() -> SummarizationService:
     global _summarizer
     if _summarizer is None:
+        print("[API] Loading mT5 summarization...")
         _summarizer = SummarizationService()
     return _summarizer
 
 
-def get_label_service() -> LabelService:
-    global _label_service
-    if _label_service is None:
-        # İleride istersek use_remote_api env'den kontrol edebiliriz
-        _label_service = LabelService(use_remote_api=True)
-    return _label_service
+def get_embedder() -> EnhancedEmbeddingService:
+    global _embedder
+    if _embedder is None:
+        print("[API] Loading BGE-M3 embedding...")
+        _embedder = EnhancedEmbeddingService()
+    return _embedder
+
+
+def get_tag_extractor() -> TagExtractionService:
+    global _tag_extractor
+    if _tag_extractor is None:
+        print("[API] Loading KeyBERT...")
+        _tag_extractor = TagExtractionService()
+    return _tag_extractor
 
 
 # ----------------- Yükleme klasörü ----------------- #
