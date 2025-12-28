@@ -5,8 +5,8 @@ import UploadArea from './components/UploadArea';
 import DocumentList from './components/DocumentList';
 import DocumentDetail from './components/DocumentDetail';
 
-// Use environment variable or fallback
-const API_BASE = (process.env.REACT_APP_BACKEND_URL || window.location.origin) + '/api/ingest';
+// Use relative path for API calls (works in both dev and production)
+const API_BASE = '/api/ingest';
 
 function App() {
   const [documents, setDocuments] = useState([]);
