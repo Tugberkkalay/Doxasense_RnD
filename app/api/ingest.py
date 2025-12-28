@@ -245,43 +245,39 @@ async def ingest_upload(
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
 
-# ----------------- 3) Document + NormalizedDoc getirme ----------------- #
+# ----------------- 1) List documents ----------------- #
 @router.get("/documents")
 async def list_documents(
     skip: int = 0,
     limit: int = 50,
     status: str = None,
-    db: Session = Depends(get_db),
+    db = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Tüm dökümanları listeler (pagination ile)
     """
-    query = db.query(Document)
-    
-    if status:
-        query = query.filter(Document.status == status)
-    
-    total = query.count()
-    documents = query.order_by(Document.created_at.desc()).offset(skip).limit(limit).all()
+    doc_db = DocumentDB(db)
+    documents, total = doc_db.list_documents(skip=skip, limit=limit, status=status)
     
     doc_list = []
     for doc in documents:
         # Get first normalized doc for preview
-        nd = doc.normalized_docs[0] if doc.normalized_docs else None
+        normalized_docs = doc_db.get_normalized_docs_by_document(doc["_id"])
+        nd = normalized_docs[0] if normalized_docs else None
         
         doc_list.append({
-            "id": str(doc.id),
-            "original_name": doc.original_name,
-            "mime_type": doc.mime_type,
-            "size_bytes": doc.size_bytes,
-            "size_mb": round(doc.size_bytes / (1024*1024), 2) if doc.size_bytes else None,
-            "status": doc.status,
-            "created_at": doc.created_at.isoformat() if doc.created_at else None,
-            "processed_at": doc.processed_at.isoformat() if doc.processed_at else None,
+            "id": doc["_id"],
+            "original_name": doc.get("original_name", ""),
+            "mime_type": doc.get("mime_type", ""),
+            "size_bytes": doc.get("size_bytes"),
+            "size_mb": round(doc.get("size_bytes", 0) / (1024*1024), 2) if doc.get("size_bytes") else None,
+            "status": doc.get("status", "unknown"),
+            "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None,
+            "processed_at": doc.get("processed_at").isoformat() if doc.get("processed_at") else None,
             # Preview from normalized_doc
-            "modality": nd.modality if nd else "unknown",
-            "tags": nd.tags[:5] if nd else [],  # First 5 tags
-            "summary_preview": (nd.summary_text or "")[:200] if nd else "",
+            "modality": nd.get("modality") if nd else "unknown",
+            "tags": nd.get("tags", [])[:5] if nd else [],
+            "summary_preview": nd.get("summary_text", "")[:200] if nd else "",
         })
     
     return {
@@ -295,48 +291,49 @@ async def list_documents(
 @router.get("/document/{document_id}")
 async def get_document(
     document_id: str,
-    db: Session = Depends(get_db),
+    db = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Document + ilgili NormalizedDoc'ları getirir.
-    Search sonuçlarında orijinal dosyayı göstermek için kullanışlı.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
+    doc_db = DocumentDB(db)
+    doc = doc_db.get_document(document_id)
+    
     if not doc:
         raise HTTPException(status_code=404, detail="Document bulunamadı.")
-
+    
+    normalized_docs = doc_db.get_normalized_docs_by_document(document_id)
+    
     normalized_list: List[Dict[str, Any]] = []
-    for nd in doc.normalized_docs:
-        normalized_list.append(
-            {
-                "id": str(nd.id),
-                "modality": nd.modality,
-                "source_filename": nd.source_filename,
-                "source_mime": nd.source_mime,
-                "language": nd.language,
-                "created_at": nd.created_at.isoformat() if nd.created_at else None,
-                "tags": nd.tags,
-                "labels": nd.labels,
-                "captions": nd.captions,
-                "summary_preview": (nd.summary_text or "")[:500],
-                "main_text_preview": (nd.main_text or "")[:500],
-                "extra_metadata": nd.extra_metadata,
-                "processing_time": nd.processing_time_seconds,
-            }
-        )
+    for nd in normalized_docs:
+        normalized_list.append({
+            "id": nd["_id"],
+            "modality": nd.get("modality", ""),
+            "source_filename": nd.get("source_filename", ""),
+            "source_mime": nd.get("source_mime", ""),
+            "language": nd.get("language", ""),
+            "created_at": nd.get("created_at").isoformat() if nd.get("created_at") else None,
+            "tags": nd.get("tags", []),
+            "labels": nd.get("labels", []),
+            "captions": nd.get("captions", []),
+            "summary_preview": nd.get("summary_text", "")[:500],
+            "main_text_preview": nd.get("main_text", "")[:500],
+            "extra_metadata": nd.get("extra_metadata", {}),
+            "processing_time": nd.get("processing_time_seconds"),
+        })
 
     return {
         "document": {
-            "id": str(doc.id),
-            "original_name": doc.original_name,
-            "mime_type": doc.mime_type,
-            "size_bytes": doc.size_bytes,
-            "size_mb": round(doc.size_bytes / (1024*1024), 2) if doc.size_bytes else None,
-            "storage_backend": doc.storage_backend,
-            "storage_path": doc.storage_path,
-            "status": doc.status,
-            "created_at": doc.created_at.isoformat() if doc.created_at else None,
-            "processed_at": doc.processed_at.isoformat() if doc.processed_at else None,
+            "id": doc["_id"],
+            "original_name": doc.get("original_name", ""),
+            "mime_type": doc.get("mime_type", ""),
+            "size_bytes": doc.get("size_bytes"),
+            "size_mb": round(doc.get("size_bytes", 0) / (1024*1024), 2) if doc.get("size_bytes") else None,
+            "storage_backend": doc.get("storage_backend", "local_fs"),
+            "storage_path": doc.get("storage_path", ""),
+            "status": doc.get("status", "unknown"),
+            "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None,
+            "processed_at": doc.get("processed_at").isoformat() if doc.get("processed_at") else None,
         },
         "normalized_docs": normalized_list,
     }
