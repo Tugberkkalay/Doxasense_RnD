@@ -243,6 +243,52 @@ async def ingest_upload(
 
 
 # ----------------- 3) Document + NormalizedDoc getirme ----------------- #
+@router.get("/documents")
+async def list_documents(
+    skip: int = 0,
+    limit: int = 50,
+    status: str = None,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Tüm dökümanları listeler (pagination ile)
+    """
+    query = db.query(Document)
+    
+    if status:
+        query = query.filter(Document.status == status)
+    
+    total = query.count()
+    documents = query.order_by(Document.created_at.desc()).offset(skip).limit(limit).all()
+    
+    doc_list = []
+    for doc in documents:
+        # Get first normalized doc for preview
+        nd = doc.normalized_docs[0] if doc.normalized_docs else None
+        
+        doc_list.append({
+            "id": str(doc.id),
+            "original_name": doc.original_name,
+            "mime_type": doc.mime_type,
+            "size_bytes": doc.size_bytes,
+            "size_mb": round(doc.size_bytes / (1024*1024), 2) if doc.size_bytes else None,
+            "status": doc.status,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+            "processed_at": doc.processed_at.isoformat() if doc.processed_at else None,
+            # Preview from normalized_doc
+            "modality": nd.modality if nd else "unknown",
+            "tags": nd.tags[:5] if nd else [],  # First 5 tags
+            "summary_preview": (nd.summary_text or "")[:200] if nd else "",
+        })
+    
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "documents": doc_list
+    }
+
+
 @router.get("/document/{document_id}")
 async def get_document(
     document_id: str,
