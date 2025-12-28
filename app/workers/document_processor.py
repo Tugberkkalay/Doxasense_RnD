@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from typing import Any, List, Dict
+from datetime import datetime
 
 from app.db.session import SessionLocal
 from app.db.models import Document, NormalizedDoc
