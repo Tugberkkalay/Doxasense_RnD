@@ -27,8 +27,8 @@ services:
       # docker içinden db ve redis host isimleri
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/doxasense_mind
       REDIS_URL: redis://redis:6379/0
-      OPENAI_API_KEY: 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
-      HUGGINGFACE_HUB_TOKEN: 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
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      HUGGINGFACE_HUB_TOKEN: ${HF_TOKEN}
       OBJC_DISABLE_INITIALIZE_FORK_SAFETY: YES
     volumes:
       - .:/app
