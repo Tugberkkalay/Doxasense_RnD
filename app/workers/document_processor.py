@@ -82,16 +82,21 @@ def process_document(document_id: str) -> dict[str, Any]:
     - DB'den Document kaydını alır
     - Dosyayı diskten okur
     - route_file ile modaliteyi belirler
-    - ilgili pipeline'lar ile text çıkarır, özet + label + embedding üretir
+    - ilgili pipeline'lar ile text çıkarır, özet + tag + embedding üretir
     - NormalizedDoc tablosuna yazar
     """
+    start_time = time.time()
     db = SessionLocal()
+    
     try:
         # 1) Document kaydını al
         doc: Document | None = db.query(Document).filter(Document.id == document_id).first()
         if doc is None:
-            # RQ logu için basit return
             return {"error": f"Document {document_id} not found"}
+
+        # Update status
+        doc.status = "processing"
+        db.commit()
 
         # 2) Dosyayı diskten oku
         with open(doc.storage_path, "rb") as f:
@@ -105,43 +110,86 @@ def process_document(document_id: str) -> dict[str, Any]:
         )
 
         # 4) Modaliteye göre metni çıkar
+        main_text = ""
         captions: List[str] = []
+        metadata: Dict[str, Any] = {}
+        
         if routed.modality == FileModality.TEXT:
             extracted = get_ocr().auto_extract(routed.filename, routed.content)
             main_text = extracted.text
+            metadata = {
+                "source_type": extracted.source_type,
+                "pages": len(extracted.pages) if extracted.pages else None
+            }
+            
         elif routed.modality == FileModality.AUDIO:
             transcript = get_audio().transcribe_audio(routed.content, routed.filename)
             main_text = transcript.text
+            metadata = {
+                "duration_seconds": transcript.duration_seconds,
+                "language": transcript.language
+            }
+            
         elif routed.modality == FileModality.VIDEO:
             transcript = get_audio().transcribe_video(routed.content, routed.filename)
             main_text = transcript.text
+            
+            # TODO: Add frame extraction & captioning here
+            # For now, just use audio transcript
+            metadata = {
+                "duration_seconds": transcript.duration_seconds,
+                "language": transcript.language,
+                "has_video": True
+            }
+            
         elif routed.modality == FileModality.IMAGE:
             analysis = get_vision().analyze_image(routed.content, routed.filename)
-            main_text = (analysis.ocr_text or "") + " " + " ".join(analysis.blip_captions)
-            main_text = main_text.strip()
-            captions = analysis.blip_captions
+            
+            # Combine OCR + captions
+            text_parts = []
+            if analysis.ocr_text:
+                text_parts.append(analysis.ocr_text)
+            if analysis.blip_captions:
+                text_parts.extend(analysis.blip_captions)
+                captions = analysis.blip_captions
+            
+            main_text = " | ".join(text_parts) if text_parts else "image without text"
+            metadata = {
+                "has_text": bool(analysis.ocr_text),
+                "caption_count": len(analysis.blip_captions)
+            }
         else:
-            # UNKNOWN → text gibi davran
+            # UNKNOWN → try text extraction
             extracted = get_ocr().auto_extract(routed.filename, routed.content)
             main_text = extracted.text
 
         if not main_text:
             main_text = ""
 
-        # 5) Özet
+        # 5) Summary
+        print(f"[Worker] Generating summary...")
         summary = get_summarizer().summarize(main_text) if main_text else ""
 
-        # 6) Label (LLM veya heuristik)
-        labels = get_label_service().generate_labels(
-            main_text=main_text,
-            summary_text=summary,
+        # 6) Tags (KeyBERT)
+        print(f"[Worker] Extracting tags...")
+        tags = get_tag_extractor().extract_tags_from_multimodal(
+            full_text=main_text,
+            summary=summary,
             captions=captions,
+            top_n=10
         )
 
-        # 7) Embedding
-        emb = get_embedder().embed(main_text) if main_text else [0.0] * 384
+        # 7) Embedding (BGE-M3)
+        print(f"[Worker] Generating embedding...")
+        embedding = get_embedder().embed_for_search(
+            full_text=main_text,
+            summary=summary,
+            tags=tags
+        )
 
         # 8) NormalizedDoc kaydı
+        processing_time = time.time() - start_time
+        
         ndoc = NormalizedDoc(
             document_id=doc.id,
             modality=routed.modality.value if hasattr(routed.modality, "value") else str(routed.modality),
@@ -149,24 +197,32 @@ def process_document(document_id: str) -> dict[str, Any]:
             source_mime=doc.mime_type or "application/octet-stream",
             main_text=main_text,
             summary_text=summary,
+            tags=tags,
+            labels=[],  # Can be added later for categorization
             captions=captions,
-            labels=labels,
-            embedding=emb,
+            metadata=metadata,
+            processing_time_seconds=round(processing_time, 2)
         )
+        ndoc.set_embedding(embedding)
+        
         db.add(ndoc)
 
         # Document status güncelle
         doc.status = "processed"
+        doc.processed_at = datetime.utcnow()
         db.add(doc)
 
         db.commit()
         db.refresh(ndoc)
 
+        print(f"[Worker] Document {document_id} processed successfully in {processing_time:.2f}s")
+
         return {
             "normalized_doc_id": str(ndoc.id),
             "document_id": str(doc.id),
             "modality": ndoc.modality,
-            "labels": labels,
+            "tags": tags,
+            "processing_time": processing_time
         }
 
     except Exception as e:
@@ -175,12 +231,13 @@ def process_document(document_id: str) -> dict[str, Any]:
         try:
             doc = db.query(Document).filter(Document.id == document_id).first()
             if doc:
-                doc.status = "error"
+                doc.status = "failed"
                 db.add(doc)
                 db.commit()
         except Exception:
             pass
         # RQ dashboard'ta görebilmen için mesaja yaz
+        print(f"[Worker] Error processing document {document_id}: {e}")
         raise e
     finally:
         db.close()
