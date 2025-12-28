@@ -76,7 +76,24 @@ def process_document_mongo(document_id: str) -> dict[str, Any]:
     db = get_mongo_db()
     doc_db = DocumentDB(db)
     
+    # Get current job for progress updates
     try:
+        from rq import get_current_job
+        job = get_current_job()
+    except:
+        job = None
+    
+    def update_progress(percent: int, message: str = ""):
+        """Update job progress"""
+        if job:
+            job.meta['progress'] = percent
+            job.meta['message'] = message
+            job.save_meta()
+        print(f"[Worker] Progress: {percent}% - {message}")
+    
+    try:
+        update_progress(5, "Loading document...")
+        
         # 1) Get document
         doc = doc_db.get_document(document_id)
         if doc is None:
@@ -84,10 +101,14 @@ def process_document_mongo(document_id: str) -> dict[str, Any]:
 
         # Update status
         doc_db.update_document(document_id, {"status": "processing"})
+        
+        update_progress(10, "Reading file...")
 
         # 2) Read file from disk
         with open(doc["storage_path"], "rb") as f:
             data = f.read()
+
+        update_progress(15, "Detecting file type...")
 
         # 3) Route by modality
         routed = route_file(
@@ -96,28 +117,35 @@ def process_document_mongo(document_id: str) -> dict[str, Any]:
             content=data,
         )
 
+        update_progress(20, f"Processing {routed.modality.value} content...")
+
         # 4) Extract content
         main_text = ""
         captions: List[str] = []
         extra_metadata: Dict[str, Any] = {}
         
         if routed.modality == FileModality.TEXT:
+            update_progress(25, "Extracting text with OCR...")
             extracted = get_ocr().auto_extract(routed.filename, routed.content)
             main_text = extracted.text
             extra_metadata = {
                 "source_type": extracted.source_type,
                 "pages": len(extracted.pages) if extracted.pages else None
             }
+            update_progress(40, "Text extraction complete")
             
         elif routed.modality == FileModality.AUDIO:
+            update_progress(25, "Transcribing audio...")
             transcript = get_audio().transcribe_audio(routed.content, routed.filename)
             main_text = transcript.text
             extra_metadata = {
                 "duration_seconds": transcript.duration_seconds,
                 "language": transcript.language
             }
+            update_progress(40, "Audio transcription complete")
             
         elif routed.modality == FileModality.VIDEO:
+            update_progress(25, "Extracting audio from video...")
             transcript = get_audio().transcribe_video(routed.content, routed.filename)
             main_text = transcript.text
             extra_metadata = {
@@ -125,8 +153,10 @@ def process_document_mongo(document_id: str) -> dict[str, Any]:
                 "language": transcript.language,
                 "has_video": True
             }
+            update_progress(40, "Video transcription complete")
             
         elif routed.modality == FileModality.IMAGE:
+            update_progress(25, "Analyzing image...")
             analysis = get_vision().analyze_image(routed.content, routed.filename)
             text_parts = []
             if analysis.ocr_text:
@@ -140,6 +170,7 @@ def process_document_mongo(document_id: str) -> dict[str, Any]:
                 "has_text": bool(analysis.ocr_text),
                 "caption_count": len(analysis.blip_captions)
             }
+            update_progress(40, "Image analysis complete")
         else:
             extracted = get_ocr().auto_extract(routed.filename, routed.content)
             main_text = extracted.text
@@ -148,25 +179,28 @@ def process_document_mongo(document_id: str) -> dict[str, Any]:
             main_text = ""
 
         # 5) Summary
-        print(f"[Worker] Generating summary...")
+        update_progress(50, "Generating summary...")
         summary = get_summarizer().summarize(main_text) if main_text else ""
+        update_progress(60, "Summary complete")
 
         # 6) Tags
-        print(f"[Worker] Extracting tags...")
+        update_progress(65, "Extracting tags...")
         tags = get_tag_extractor().extract_tags_from_multimodal(
             full_text=main_text,
             summary=summary,
             captions=captions,
             top_n=10
         )
+        update_progress(75, "Tags extracted")
 
         # 7) Embedding
-        print(f"[Worker] Generating embedding...")
+        update_progress(80, "Generating embeddings...")
         embedding = get_embedder().embed_for_search(
             full_text=main_text,
             summary=summary,
             tags=tags
         )
+        update_progress(90, "Embeddings generated")
 
         # 8) Create NormalizedDoc
         processing_time = time.time() - start_time
@@ -192,6 +226,8 @@ def process_document_mongo(document_id: str) -> dict[str, Any]:
             "processed_at": datetime.utcnow()
         })
 
+        update_progress(100, "Processing complete!")
+
         print(f"[Worker] Document {document_id} processed successfully in {processing_time:.2f}s")
 
         return {
@@ -205,5 +241,6 @@ def process_document_mongo(document_id: str) -> dict[str, Any]:
     except Exception as e:
         # Update status to failed
         doc_db.update_document(document_id, {"status": "failed"})
+        update_progress(0, f"Failed: {str(e)}")
         print(f"[Worker] Error processing document {document_id}: {e}")
         raise e
