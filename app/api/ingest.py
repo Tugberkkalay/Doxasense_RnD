@@ -199,47 +199,54 @@ async def ingest_auto(
     }
 
 
-# ----------------- 2) Production flow: upload + RQ job ----------------- #
+# ----------------- 2) Production flow: upload + inline processing ----------------- #
 @router.post("/upload")
 async def ingest_upload(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
-    Production senaryosu:
+    Production senaryosu (without queue - inline processing):
     - Dosyayı diske kaydeder
     - documents tablosuna insert eder
-    - RQ ile process_document(document_id) job'unu queue'ya atar
-    - Hemen response döner (background'da işlenecek)
+    - Hemen işler (inline)
+    - Response döner
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="Dosya adı boş.")
 
     storage_path = save_upload_file(file)
+    
+    # Get file size
+    file_size = os.path.getsize(storage_path)
 
     doc = Document(
         original_name=file.filename,
         mime_type=file.content_type or "application/octet-stream",
-        size_bytes=None,
+        size_bytes=file_size,
         storage_backend="local_fs",
         storage_path=storage_path,
-        status="uploaded",
+        status="processing",
     )
     db.add(doc)
     db.commit()
     db.refresh(doc)
 
-    # RQ job enqueue
-    job = task_queue.enqueue(
-        process_document,
-        doc.id,
-        job_timeout=600,  # 10 dakika
-    )
-    return {
-        "document_id": str(doc.id),
-        "job_id": job.id,
-        "status": "queued",
-    }
+    try:
+        # Process inline (no queue)
+        from app.workers.document_processor import process_document
+        result = process_document(str(doc.id))
+        
+        return {
+            "document_id": str(doc.id),
+            "status": "completed",
+            "result": result
+        }
+    except Exception as e:
+        # Update status to failed
+        doc.status = "failed"
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
 
 # ----------------- 3) Document + NormalizedDoc getirme ----------------- #
