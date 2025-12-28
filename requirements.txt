@@ -56,9 +56,16 @@ sentence-transformers
 protobuf
 
 ########################
+# Enhanced NLP & Keyword Extraction
+########################
+keybert
+scikit-learn
+
+########################
 # Utilities
 ########################
 numpy
 requests
 soundfile
 librosa
+timm
