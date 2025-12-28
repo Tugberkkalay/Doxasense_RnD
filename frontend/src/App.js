@@ -4,6 +4,7 @@ import './App.css';
 import UploadArea from './components/UploadArea';
 import DocumentList from './components/DocumentList';
 import DocumentDetail from './components/DocumentDetail';
+import UploadQueue from './components/UploadQueue';
 
 // Use relative path for API calls (works in both dev and production)
 const API_BASE = '/api/ingest';
@@ -11,7 +12,7 @@ const API_BASE = '/api/ingest';
 function App() {
   const [documents, setDocuments] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState([]); // Active uploads with status
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [showDetail, setShowDetail] = useState(false);
 
@@ -19,6 +20,17 @@ function App() {
   useEffect(() => {
     fetchDocuments();
   }, []);
+
+  // Poll upload statuses
+  useEffect(() => {
+    if (uploadQueue.length === 0) return;
+    
+    const interval = setInterval(() => {
+      checkUploadStatuses();
+    }, 2000); // Check every 2 seconds
+    
+    return () => clearInterval(interval);
+  }, [uploadQueue]);
 
   const fetchDocuments = async () => {
     try {
@@ -29,24 +41,91 @@ function App() {
     }
   };
 
+  const checkUploadStatuses = async () => {
+    const updatedQueue = await Promise.all(
+      uploadQueue.map(async (item) => {
+        if (item.status === 'completed' || item.status === 'failed') {
+          return item; // Already finished
+        }
+        
+        try {
+          const response = await axios.get(`${API_BASE}/job/${item.jobId}/status`);
+          const jobStatus = response.data;
+          
+          return {
+            ...item,
+            status: jobStatus.status,
+            progress: jobStatus.progress || 0,
+            message: jobStatus.result?.message || '',
+          };
+        } catch (error) {
+          return item;
+        }
+      })
+    );
+    
+    setUploadQueue(updatedQueue);
+    
+    // Refresh document list if any completed
+    const hasCompleted = updatedQueue.some((item, idx) => 
+      item.status === 'completed' && uploadQueue[idx]?.status !== 'completed'
+    );
+    
+    if (hasCompleted) {
+      fetchDocuments();
+    }
+    
+    // Remove completed items after 5 seconds
+    setTimeout(() => {
+      setUploadQueue(prev => 
+        prev.filter(item => 
+          !(item.status === 'completed' && Date.now() - item.completedAt > 5000)
+        )
+      );
+    }, 5000);
+  };
+
   const handleUpload = async (file) => {
-    setLoading(true);
+    const uploadId = Date.now().toString();
+    
+    // Add to queue immediately
+    setUploadQueue(prev => [...prev, {
+      id: uploadId,
+      filename: file.name,
+      status: 'uploading',
+      progress: 0,
+      jobId: null,
+      documentId: null,
+    }]);
+    
     const formData = new FormData();
     formData.append('file', file);
 
     try {
       const response = await axios.post(`${API_BASE}/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 300000, // 5 min timeout for large files
+        timeout: 30000, // 30 sec for upload
       });
       
-      alert('✓ Döküman başarıyla yüklendi ve işlendi!');
-      fetchDocuments(); // Refresh list
+      // Update with job info
+      setUploadQueue(prev => prev.map(item =>
+        item.id === uploadId ? {
+          ...item,
+          status: 'queued',
+          jobId: response.data.job_id,
+          documentId: response.data.document_id,
+        } : item
+      ));
+      
     } catch (error) {
       console.error('Upload error:', error);
-      alert('✗ Yükleme başarısız: ' + (error.response?.data?.detail || error.message));
-    } finally {
-      setLoading(false);
+      setUploadQueue(prev => prev.map(item =>
+        item.id === uploadId ? {
+          ...item,
+          status: 'failed',
+          message: error.response?.data?.detail || error.message,
+        } : item
+      ));
     }
   };
 
@@ -102,7 +181,12 @@ function App() {
       {/* Main Content */}
       <main className="main-content">
         {/* Upload Area */}
-        <UploadArea onUpload={handleUpload} loading={loading} />
+        <UploadArea onUpload={handleUpload} />
+        
+        {/* Upload Queue */}
+        {uploadQueue.length > 0 && (
+          <UploadQueue items={uploadQueue} />
+        )}
 
         {/* Documents Section */}
         <div className="documents-section">
@@ -122,14 +206,6 @@ function App() {
       {/* Detail Drawer */}
       {showDetail && selectedDoc && (
         <DocumentDetail doc={selectedDoc} onClose={closeDetail} />
-      )}
-
-      {/* Loading Overlay */}
-      {loading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
-          <p>İşleniyor...</p>
-        </div>
       )}
     </div>
   );
