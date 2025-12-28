@@ -1,7 +1,8 @@
 # app/workers/document_processor.py
 from __future__ import annotations
 
-from typing import Any, List
+import time
+from typing import Any, List, Dict
 
 from app.db.session import SessionLocal
 from app.db.models import Document, NormalizedDoc
@@ -12,15 +13,15 @@ _ocr = None
 _audio = None
 _vision = None
 _summarizer = None
-_label_service = None
 _embedder = None
+_tag_extractor = None
 
 
 def get_ocr():
     """OCR pipeline'ı lazy import + lazy init."""
     global _ocr
     if _ocr is None:
-        from extraction.ocr_pipeline import OcrPipeline  # ağır olmayan kısım ama yine de child'da kalsın
+        from extraction.ocr_pipeline import OcrPipeline
         _ocr = OcrPipeline(tesseract_lang="tur+eng")
     return _ocr
 
@@ -29,8 +30,9 @@ def get_audio():
     """Whisper audio/video pipeline'ı lazy import + lazy init."""
     global _audio
     if _audio is None:
-        from extraction.audio_pipeline import AudioPipeline  # torchaudio + transformers burada load edilecek
-        _audio = AudioPipeline()  # offline whisper
+        from extraction.audio_pipeline import AudioPipeline
+        print("[Worker] Loading Whisper-large-v3 (this may take a while)...")
+        _audio = AudioPipeline()  # Now using whisper-large-v3
     return _audio
 
 
@@ -38,36 +40,40 @@ def get_vision():
     """BLIP vb. görsel pipeline'ı lazy import + lazy init."""
     global _vision
     if _vision is None:
-        from extraction.vision_pipeline import VisionPipeline  # transformers burada load edilecek
+        from extraction.vision_pipeline import VisionPipeline
+        print("[Worker] Loading BLIP-2 vision model...")
         _vision = VisionPipeline()
     return _vision
 
 
 def get_summarizer():
-    """Text summarization servisi (distilbart vs.) lazy init."""
+    """Text summarization servisi (mT5) lazy init."""
     global _summarizer
     if _summarizer is None:
-        from app.summarization.service import SummarizationService  # transformers burada load edilecek
-        _summarizer = SummarizationService()
+        from app.summarization.service import SummarizationService
+        print("[Worker] Loading mT5 summarization model...")
+        _summarizer = SummarizationService()  # Now using mT5
     return _summarizer
 
 
-def get_label_service():
-    """LLM tabanlı label servisi lazy init."""
-    global _label_service
-    if _label_service is None:
-        from app.llm.label_service import LabelService  # openai / transformers burada load edilecek
-        _label_service = LabelService(use_remote_api=True)
-    return _label_service
-
-
 def get_embedder():
-    """Sentence-transformer embedding servisi lazy init."""
+    """Enhanced embedding servisi (BGE-M3) lazy init."""
     global _embedder
     if _embedder is None:
-        from app.embedding.service import EmbeddingService  # sentence-transformers burada load edilecek
-        _embedder = EmbeddingService()
+        from app.embedding.enhanced_embedding_service import EnhancedEmbeddingService
+        print("[Worker] Loading BGE-M3 embedding model...")
+        _embedder = EnhancedEmbeddingService()  # BGE-M3
     return _embedder
+
+
+def get_tag_extractor():
+    """Tag extraction servisi (KeyBERT) lazy init."""
+    global _tag_extractor
+    if _tag_extractor is None:
+        from app.nlp.tag_extraction_service import TagExtractionService
+        print("[Worker] Loading KeyBERT tag extraction...")
+        _tag_extractor = TagExtractionService()
+    return _tag_extractor
 
 
 def process_document(document_id: str) -> dict[str, Any]:
