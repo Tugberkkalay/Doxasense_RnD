@@ -199,12 +199,12 @@ async def ingest_auto(
 @router.post("/upload")
 async def ingest_upload(
     file: UploadFile = File(...),
-    db: Session = Depends(get_db),
+    db = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Production senaryosu (without queue - inline processing):
     - Dosyayı diske kaydeder
-    - documents tablosuna insert eder
+    - documents collection'ına insert eder
     - Hemen işler (inline)
     - Response döner
     """
@@ -216,32 +216,29 @@ async def ingest_upload(
     # Get file size
     file_size = os.path.getsize(storage_path)
 
-    doc = Document(
-        original_name=file.filename,
-        mime_type=file.content_type or "application/octet-stream",
-        size_bytes=file_size,
-        storage_backend="local_fs",
-        storage_path=storage_path,
-        status="processing",
-    )
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
+    doc_db = DocumentDB(db)
+    doc = doc_db.create_document({
+        "original_name": file.filename,
+        "mime_type": file.content_type or "application/octet-stream",
+        "size_bytes": file_size,
+        "storage_backend": "local_fs",
+        "storage_path": storage_path,
+        "status": "processing",
+    })
 
     try:
         # Process inline (no queue)
-        from app.workers.document_processor import process_document
-        result = process_document(str(doc.id))
+        from app.workers.document_processor_mongo import process_document_mongo
+        result = process_document_mongo(doc["_id"])
         
         return {
-            "document_id": str(doc.id),
+            "document_id": doc["_id"],
             "status": "completed",
             "result": result
         }
     except Exception as e:
         # Update status to failed
-        doc.status = "failed"
-        db.commit()
+        doc_db.update_document(doc["_id"], {"status": "failed"})
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
 
