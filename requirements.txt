@@ -1,0 +1,64 @@
+########################
+# Core & API
+########################
+fastapi
+uvicorn[standard]
+pydantic>=2.0
+python-multipart
+python-dotenv
+
+########################
+# Database
+########################
+SQLAlchemy
+psycopg2-binary
+alembic
+
+########################
+# Queue / Background Tasks
+########################
+redis
+rq
+
+########################
+# OCR & Document Processing
+########################
+pytesseract
+Pillow
+pdfplumber
+pdf2image
+python-docx
+
+########################
+# Audio & Video Processing
+########################
+ffmpeg-python
+torchaudio
+
+########################
+# LLM / OpenAI / Whisper API
+########################
+openai
+
+########################
+# Vision & Multimodal (BLIP-2, CLIP, etc)
+########################
+transformers
+accelerate
+safetensors
+sentencepiece
+opencv-python-headless
+
+########################
+# Embedding / NLP
+########################
+sentence-transformers
+protobuf
+
+########################
+# Utilities
+########################
+numpy
+requests
+soundfile
+librosa

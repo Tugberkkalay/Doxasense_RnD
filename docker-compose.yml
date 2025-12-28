@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  db:
+    image: ankane/pgvector:latest  # pgvector hazır geliyor
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: doxasense_mind
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    container_name: doxasense_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    env_file:
+      - .env.docker
+    environment:
+      # docker içinden db ve redis host isimleri
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/doxasense_mind
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_API_KEY: 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
+      HUGGINGFACE_HUB_TOKEN: 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
+      OBJC_DISABLE_INITIALIZE_FORK_SAFETY: YES
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build: .
+    container_name: doxasense_worker
+    command: rq worker doxasense_mind -u redis://redis:6379/0
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/doxasense_mind
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  pgdata:
