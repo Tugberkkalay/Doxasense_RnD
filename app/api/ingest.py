@@ -172,11 +172,19 @@ async def ingest_auto(
     # Summary
     summary_text = get_summarizer().summarize(main_text)
 
-    # LLM Labels
-    labels = get_label_service().generate_labels(
-        main_text=main_text,
-        summary_text=summary_text,
+    # Tags (KeyBERT)
+    tags = get_tag_extractor().extract_tags_from_multimodal(
+        full_text=main_text,
+        summary=summary_text,
         captions=captions,
+        top_n=10
+    )
+
+    # Embedding
+    embedding = get_embedder().embed_for_search(
+        full_text=main_text,
+        summary=summary_text,
+        tags=tags
     )
 
     return {
@@ -186,7 +194,8 @@ async def ingest_auto(
         "main_text_preview": main_text[:500],
         "summary_text": summary_text,
         "captions": captions,
-        "labels": labels,
+        "tags": tags,
+        "embedding_dim": len(embedding),
     }
 
 
