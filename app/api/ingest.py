@@ -5,10 +5,9 @@ import uuid
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List
 
-from app.db.session import get_db
-from app.db.models import Document, NormalizedDoc
+from app.db.mongo_session import get_db, DocumentDB
 
 from extraction.ocr_pipeline import OcrPipeline
 from extraction.audio_pipeline import AudioPipeline
