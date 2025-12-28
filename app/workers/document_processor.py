@@ -118,7 +118,7 @@ def process_document(document_id: str) -> dict[str, Any]:
         if routed.modality == FileModality.TEXT:
             extracted = get_ocr().auto_extract(routed.filename, routed.content)
             main_text = extracted.text
-            metadata = {
+            extra_metadata = {
                 "source_type": extracted.source_type,
                 "pages": len(extracted.pages) if extracted.pages else None
             }
@@ -126,7 +126,7 @@ def process_document(document_id: str) -> dict[str, Any]:
         elif routed.modality == FileModality.AUDIO:
             transcript = get_audio().transcribe_audio(routed.content, routed.filename)
             main_text = transcript.text
-            metadata = {
+            extra_metadata = {
                 "duration_seconds": transcript.duration_seconds,
                 "language": transcript.language
             }
@@ -137,7 +137,7 @@ def process_document(document_id: str) -> dict[str, Any]:
             
             # TODO: Add frame extraction & captioning here
             # For now, just use audio transcript
-            metadata = {
+            extra_metadata = {
                 "duration_seconds": transcript.duration_seconds,
                 "language": transcript.language,
                 "has_video": True
@@ -155,7 +155,7 @@ def process_document(document_id: str) -> dict[str, Any]:
                 captions = analysis.blip_captions
             
             main_text = " | ".join(text_parts) if text_parts else "image without text"
-            metadata = {
+            extra_metadata = {
                 "has_text": bool(analysis.ocr_text),
                 "caption_count": len(analysis.blip_captions)
             }
