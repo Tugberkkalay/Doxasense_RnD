@@ -16,13 +16,15 @@ from .schemas import AudioTranscript, AudioSegment
 
 
 class WhisperModels:
-    def __init__(self, model_name: str = "openai/whisper-small"):
+    def __init__(self, model_name: str = "openai/whisper-large-v3"):
+        print(f"[AudioPipeline] Loading Whisper model: {model_name}")
         self.processor = WhisperProcessor.from_pretrained(model_name)
         self.model = WhisperForConditionalGeneration.from_pretrained(
             model_name,
             torch_dtype="auto",
             device_map="auto",   # CPU / MPS / GPU otomatik
         )
+        print(f"[AudioPipeline] Whisper model loaded successfully")
 
 
 class AudioPipeline:
