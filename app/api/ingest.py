@@ -264,10 +264,15 @@ async def get_document(
                 "modality": nd.modality,
                 "source_filename": nd.source_filename,
                 "source_mime": nd.source_mime,
+                "language": nd.language,
                 "created_at": nd.created_at.isoformat() if nd.created_at else None,
+                "tags": nd.tags,
                 "labels": nd.labels,
                 "captions": nd.captions,
                 "summary_preview": (nd.summary_text or "")[:500],
+                "main_text_preview": (nd.main_text or "")[:500],
+                "metadata": nd.metadata,
+                "processing_time": nd.processing_time_seconds,
             }
         )
 
@@ -276,10 +281,13 @@ async def get_document(
             "id": str(doc.id),
             "original_name": doc.original_name,
             "mime_type": doc.mime_type,
+            "size_bytes": doc.size_bytes,
+            "size_mb": round(doc.size_bytes / (1024*1024), 2) if doc.size_bytes else None,
             "storage_backend": doc.storage_backend,
             "storage_path": doc.storage_path,
             "status": doc.status,
             "created_at": doc.created_at.isoformat() if doc.created_at else None,
+            "processed_at": doc.processed_at.isoformat() if doc.processed_at else None,
         },
         "normalized_docs": normalized_list,
     }
