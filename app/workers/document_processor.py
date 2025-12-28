@@ -201,7 +201,7 @@ def process_document(document_id: str) -> dict[str, Any]:
             tags=tags,
             labels=[],  # Can be added later for categorization
             captions=captions,
-            metadata=metadata,
+            extra_metadata=extra_metadata,
             processing_time_seconds=round(processing_time, 2)
         )
         ndoc.set_embedding(embedding)
