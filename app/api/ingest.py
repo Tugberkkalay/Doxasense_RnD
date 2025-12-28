@@ -317,7 +317,7 @@ async def get_document(
                 "captions": nd.captions,
                 "summary_preview": (nd.summary_text or "")[:500],
                 "main_text_preview": (nd.main_text or "")[:500],
-                "metadata": nd.metadata,
+                "extra_metadata": nd.extra_metadata,
                 "processing_time": nd.processing_time_seconds,
             }
         )
