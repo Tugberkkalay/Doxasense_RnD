@@ -17,9 +17,6 @@ from app.summarization.service import SummarizationService
 from app.embedding.enhanced_embedding_service import EnhancedEmbeddingService
 from app.nlp.tag_extraction_service import TagExtractionService
 
-from app.queue import task_queue
-from app.workers.document_processor import process_document
-
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 
