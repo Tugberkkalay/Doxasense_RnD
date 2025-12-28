@@ -5,7 +5,8 @@ import UploadArea from './components/UploadArea';
 import DocumentList from './components/DocumentList';
 import DocumentDetail from './components/DocumentDetail';
 
-const API_BASE = 'http://localhost:8000/api/ingest';
+// Use environment variable or fallback
+const API_BASE = (process.env.REACT_APP_BACKEND_URL || window.location.origin) + '/api/ingest';
 
 function App() {
   const [documents, setDocuments] = useState([]);
