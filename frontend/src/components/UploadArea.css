@@ -1,0 +1,55 @@
+/* UploadArea.css */
+
+.upload-area {
+  background: white;
+  border: 2px dashed #D1D5DB;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+  border-color: #2563EB;
+  background: #F9FAFB;
+}
+
+.upload-area.drag-active {
+  border-color: #2563EB;
+  background: #EFF6FF;
+  transform: scale(1.02);
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  color: #6B7280;
+  transition: color 0.3s;
+}
+
+.upload-area:hover .upload-icon {
+  color: #2563EB;
+}
+
+.upload-area h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.upload-description {
+  color: #4B5563;
+  margin-bottom: 0.5rem;
+}
+
+.upload-formats {
+  color: #9CA3AF;
+  font-size: 0.875rem;
+}

@@ -1,0 +1,158 @@
+/* DocumentList.css */
+
+.document-list {
+  display: grid;
+  gap: 1rem;
+}
+
+/* Grid View */
+.document-list.grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+/* List View */
+.document-list.list {
+  grid-template-columns: 1fr;
+}
+
+.document-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 1rem;
+  position: relative;
+}
+
+.document-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.card-icon {
+  flex-shrink: 0;
+}
+
+.file-icon {
+  font-size: 2rem;
+  display: block;
+}
+
+.card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6B7280;
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.meta-separator {
+  color: #D1D5DB;
+}
+
+.card-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.tag {
+  background: #F3F4F6;
+  color: #4B5563;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.tag-more {
+  color: #6B7280;
+  font-size: 0.75rem;
+}
+
+.card-summary {
+  color: #6B7280;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.card-status {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-processed {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.status-processing {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.status-uploaded {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.status-failed {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #9CA3AF;
+}
+
+/* List View Adjustments */
+.document-list.list .document-card {
+  flex-direction: row;
+}
+
+.document-list.list .card-summary {
+  -webkit-line-clamp: 1;
+}
+
+@media (max-width: 768px) {
+  .document-list.grid {
+    grid-template-columns: 1fr;
+  }
+}
