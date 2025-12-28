@@ -9,9 +9,9 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 class SummarizationService:
     def __init__(
         self,
-        model_name: str = "sshleifer/distilbart-cnn-12-6",  # bart-large yerine daha hafif
-        max_input_tokens: int = 768,   # her chunk için
-        max_summary_tokens: int = 160,
+        model_name: str = "google/mt5-base",  # Multilingual, better Turkish support
+        max_input_tokens: int = 512,   # mT5 için optimize
+        max_summary_tokens: int = 150,
         device: str | None = None,
     ):
         self.model_name = model_name
