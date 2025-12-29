@@ -1,17 +1,12 @@
 """
 Runpod Serverless Handler
 Deploy this to Runpod for GPU-accelerated document processing
-
-Instructions:
-1. Create Runpod account
-2. Build Docker image with this handler
-3. Deploy as Serverless endpoint
-4. Set RUNPOD_ENDPOINT and RUNPOD_API_KEY in your app
 """
 import runpod
 import os
 import tempfile
 import requests
+import torch
 from typing import Dict, Any
 
 # Pre-load models at container startup (CRITICAL for performance!)
