@@ -69,3 +69,4 @@ requests
 soundfile
 librosa
 timm
+runpod
