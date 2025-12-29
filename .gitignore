@@ -31,3 +31,7 @@ Thumbs.db
 node_modules/
 build/
 .env.local
+-e 
+# Environment files
+*.env
+*.env.*
