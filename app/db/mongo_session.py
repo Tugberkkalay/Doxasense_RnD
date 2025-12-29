@@ -16,7 +16,8 @@ def get_mongo_client():
     """Get MongoDB client (singleton)"""
     global _client
     if _client is None:
-        _client = MongoClient(MONGO_URL)
+        # directConnection=True to avoid replica set requirement
+        _client = MongoClient(MONGO_URL, directConnection=True)
     return _client
 
 def get_mongo_db():
