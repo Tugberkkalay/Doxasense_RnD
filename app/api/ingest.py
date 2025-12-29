@@ -199,7 +199,7 @@ async def ingest_auto(
 @router.post("/upload")
 async def ingest_upload(
     file: UploadFile = File(...),
-    use_gpu: bool = False,  # Optional: force GPU processing
+    use_gpu: bool = True,  # DEFAULT: GPU (Runpod)
     db = Depends(get_db),
 ) -> Dict[str, Any]:
     """
