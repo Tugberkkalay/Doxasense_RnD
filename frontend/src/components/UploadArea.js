@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import './UploadArea.css';
 
-function UploadArea({ onUpload, loading }) {
+function UploadArea({ onUpload }) {
   const [dragActive, setDragActive] = useState(false);
+  const [useGPU, setUseGPU] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleDrag = (e) => {
