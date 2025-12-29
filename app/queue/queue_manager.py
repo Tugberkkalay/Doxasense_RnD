@@ -21,23 +21,24 @@ redis_conn = Redis.from_url(REDIS_URL)
 processing_queue = Queue(QUEUE_NAME, connection=redis_conn)
 
 
-def enqueue_document_processing(document_id: str, use_gpu: bool = False) -> Job:
+def enqueue_document_processing(document_id: str, use_gpu: bool = True) -> Job:
     """
     Enqueue a document for processing
     
     Args:
         document_id: MongoDB document ID
-        use_gpu: If True, route to Runpod GPU worker
+        use_gpu: If True, route to Runpod GPU worker (DEFAULT)
     
     Returns:
         RQ Job object
     """
-    # Choose worker function based on GPU availability
+    # Always use Runpod GPU (recommended)
     if use_gpu:
-        from app.workers.runpod_worker import process_on_runpod
-        worker_func = process_on_runpod
+        from app.workers.simple_worker import process_document_on_runpod
+        worker_func = process_document_on_runpod
         timeout = 300  # 5 minutes for GPU
     else:
+        # Fallback to local CPU (not recommended - disk issues)
         from app.workers.document_processor_mongo import process_document_mongo
         worker_func = process_document_mongo
         timeout = 1800  # 30 minutes for CPU
