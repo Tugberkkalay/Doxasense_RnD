@@ -1,28 +1,27 @@
-# Doxasense-Mind / Dockerfile
-FROM python:3.10-slim
+# Runpod Serverless GPU Dockerfile
+FROM runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel
 
 WORKDIR /app
 
-# Sistem paketleri (ffmpeg, tesseract, poppler vs.)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
     ffmpeg \
     libsndfile1 \
-    poppler-utils \
-    tesseract-ocr \
-    tesseract-ocr-tur \
-    tesseract-ocr-eng \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Python bağımlılıkları
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements and install
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Uygulama kodu
-COPY . .
+# Copy handler
+COPY handler.py /app/
 
+# Set environment
 ENV PYTHONUNBUFFERED=1
+ENV TRANSFORMERS_CACHE=/runpod-volume
+ENV HF_HOME=/runpod-volume
 
-# Default komut: API
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run handler
+CMD ["python", "-u", "/app/handler.py"]
