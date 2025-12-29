@@ -85,7 +85,7 @@ function App() {
     }, 5000);
   };
 
-  const handleUpload = async (file) => {
+  const handleUpload = async (file, useGPU = false) => {
     const uploadId = Date.now().toString();
     
     // Add to queue immediately
@@ -96,13 +96,19 @@ function App() {
       progress: 0,
       jobId: null,
       documentId: null,
+      useGPU: useGPU,
     }]);
     
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const response = await axios.post(`${API_BASE}/upload`, formData, {
+      // Add use_gpu parameter to URL
+      const uploadUrl = useGPU 
+        ? `${API_BASE}/upload?use_gpu=true` 
+        : `${API_BASE}/upload`;
+      
+      const response = await axios.post(uploadUrl, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 30000, // 30 sec for upload
       });

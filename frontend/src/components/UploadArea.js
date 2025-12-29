@@ -31,7 +31,7 @@ function UploadArea({ onUpload }) {
     if (e.target.files && e.target.files.length > 0) {
       // Handle multiple files
       Array.from(e.target.files).forEach(file => {
-        onUpload(file);
+        onUpload(file, useGPU);
       });
     }
   };
@@ -73,6 +73,20 @@ function UploadArea({ onUpload }) {
       <p className="upload-formats">
         Supports: PDF, Word, Images, Audio, Video
       </p>
+      
+      <div className="gpu-toggle-container">
+        <label className="gpu-toggle">
+          <input
+            type="checkbox"
+            checked={useGPU}
+            onChange={(e) => setUseGPU(e.target.checked)}
+          />
+          <span className="toggle-slider"></span>
+          <span className="toggle-label">
+            ⚡ Use GPU Processing {useGPU ? '(Faster, ~$0.001/file)' : '(CPU, Free)'}
+          </span>
+        </label>
+      </div>
     </div>
   );
 }
