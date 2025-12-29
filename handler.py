@@ -143,9 +143,9 @@ def handler(job: Dict[str, Any]) -> Dict[str, Any]:
     {
         "input": {
             "document_id": "uuid",
-            "file_url": "https://...",  # OR file_path
             "filename": "doc.pdf",
-            "mime_type": "application/pdf"
+            "mime_type": "application/pdf",
+            "file_data": "base64_encoded_file"  # OR file_url
         }
     }
     
@@ -159,25 +159,33 @@ def handler(job: Dict[str, Any]) -> Dict[str, Any]:
         "processing_time": 1.23
     }
     """
-    import time
-    import torch
+    import base64
     
     start_time = time.time()
     
     try:
         job_input = job.get("input", {})
-        file_url = job_input.get("file_url")
         filename = job_input.get("filename", "")
         mime_type = job_input.get("mime_type", "")
         
-        # Download file if URL provided
-        if file_url:
+        # Get file data (base64 or URL)
+        file_data_b64 = job_input.get("file_data")
+        file_url = job_input.get("file_url")
+        
+        if file_data_b64:
+            # Decode base64
+            file_bytes = base64.b64decode(file_data_b64)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as tmp:
+                tmp.write(file_bytes)
+                file_path = tmp.name
+        elif file_url:
+            # Download from URL
             response = requests.get(file_url, timeout=60)
             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as tmp:
                 tmp.write(response.content)
                 file_path = tmp.name
         else:
-            file_path = job_input.get("file_path")
+            return {"error": "No file_data or file_url provided", "status": "failed"}
         
         # Determine modality
         filename_lower = filename.lower()
