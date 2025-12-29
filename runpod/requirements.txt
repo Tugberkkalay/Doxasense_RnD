@@ -1,0 +1,13 @@
+# Runpod GPU Worker Requirements
+runpod
+torch
+transformers
+accelerate
+sentence-transformers
+keybert
+soundfile
+librosa
+pillow
+requests
+safetensors
+scikit-learn
